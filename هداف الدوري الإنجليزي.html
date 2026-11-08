@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>هداف الدوري الإنجليزي - لوحة الأبطال</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                    },
+                    colors: {
+                        pitch: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                            950: '#052e16'
+                        },
+                        goal: '#2563eb',
+                        assist: '#dc2626',
+                        cleansheet: '#d97706',
+                        hattrick: '#9333ea',
+                        save: '#16a34a'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts - Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            user-select: none;
+        }
+
+        /* Pitch Green Outer Border Accent */
+        .app-green-border {
+            border: 2px solid #16a34a;
+        }
+        .dark .app-green-border {
+            border: 2px solid #22c55e;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(22, 163, 74, 0.5);
+            border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(22, 163, 74, 0.8);
+        }
+
+        /* Micro-Animations Keyframes */
+        @keyframes shootBall {
+            0% { transform: scale(0.3) translate(0, 0) rotate(0deg); opacity: 0; }
+            50% { opacity: 1; transform: scale(1.4) translate(-15px, -25px) rotate(180deg); }
+            100% { transform: scale(1) translate(-30px, -50px) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes passLeg {
+            0% { transform: rotate(0deg) scale(0.8); opacity: 0; }
+            50% { transform: rotate(-25deg) scale(1.3); opacity: 1; }
+            100% { transform: rotate(15deg) scale(1); opacity: 0; }
+        }
+
+        @keyframes saveGlove {
+            0% { transform: translateY(20px) scale(0.7); opacity: 0; }
+            50% { transform: translateY(-10px) scale(1.4); opacity: 1; }
+            100% { transform: translateY(-25px) scale(0.9); opacity: 0; }
+        }
+
+        @keyframes slideTackle {
+            0% { transform: translateX(30px) skewX(20deg); opacity: 0; }
+            50% { transform: translateX(0px) skewX(-10deg) scale(1.2); opacity: 1; }
+            100% { transform: translateX(-30px) skewX(0deg); opacity: 0; }
+        }
+
+        .anim-shoot { animation: shootBall 1.2s ease-out forwards; }
+        .anim-pass { animation: passLeg 1.2s ease-out forwards; }
+        .anim-save { animation: saveGlove 1.2s ease-out forwards; }
+        .anim-tackle { animation: slideTackle 1.2s ease-out forwards; }
+
+        .bubble-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .bubble-btn:active {
+            transform: scale(0.85);
+        }
+
+        /* Realistic Trophy Glow & Shimmer */
+        .trophy-glow {
+            filter: drop-shadow(0 0 15px rgba(234, 179, 8, 0.4));
+        }
+        .trophy-shimmer {
+            background: linear-gradient(135deg, #fff3a1 0%, #d4af37 40%, #aa7c11 100%);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300 pb-16">
+
+    <!-- Floating Animation Overlay Layer -->
+    <div id="animation-overlay-container" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 z-50 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-3 pointer-events-none">
+        <i class="fa-solid fa-trophy text-amber-400"></i>
+        <span id="toast-message">تم تسجيل الإنجاز بنجاح</span>
+    </div>
+
+    <!-- Tooltip Modal Dialog -->
+    <div id="tooltip-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 border-2 border-emerald-600 rounded-3xl p-6 max-w-md w-full shadow-2xl transform scale-95 transition-transform duration-300" id="tooltip-content-box">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div id="tooltip-icon-wrapper" class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl text-white shadow-md">
+                        <i id="tooltip-modal-icon" class="fa-solid fa-circle-question"></i>
+                    </div>
+                    <h3 id="tooltip-modal-title" class="text-xl font-black">شرح الفئة</h3>
+                </div>
+                <button onclick="closeTooltipModal()" class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-slate-500"></i>
+                </button>
+            </div>
+            <p id="tooltip-modal-desc" class="text-slate-600 dark:text-slate-300 text-base leading-relaxed mb-6 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 font-medium"></p>
+            <button onclick="closeTooltipModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/20">حسناً، فهمت</button>
+        </div>
+    </div>
+
+    <!-- FIXED TOP NAVIGATION BAR (Facebook-Style Sticky Bar with Premier League Pitch Green Header) -->
+    <nav class="sticky top-0 z-40 bg-emerald-950/95 border-b-2 border-emerald-600 shadow-lg text-white backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- Logo & Brand -->
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-green-400 flex items-center justify-center text-slate-950 text-xl shadow-lg shadow-emerald-500/30 font-black">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
+                    <span class="text-lg font-black tracking-tight hidden sm:inline text-emerald-400">
+                        هداف الدوري الإنجليزي ⚽
+                    </span>
+                </div>
+
+                <!-- Central Tab Controls -->
+                <div class="flex items-center justify-center gap-1 sm:gap-2 flex-1 max-w-xl mx-2">
+                    <!-- Tab 1: Dashboard -->
+                    <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="nav-tab-btn flex-1 py-2 sm:py-2.5 px-2 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 font-bold text-xs sm:text-sm transition-all text-emerald-400 bg-emerald-900/80">
+                        <i class="fa-solid fa-chart-pie text-base sm:text-lg"></i>
+                        <span>الرئيسية</span>
+                    </button>
+                    <!-- Tab 2: Stadium & Goals -->
+                    <button onclick="switchTab('stadium')" id="tab-btn-stadium" class="nav-tab-btn flex-1 py-2 sm:py-2.5 px-2 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 font-bold text-xs sm:text-sm text-emerald-200/70 hover:text-white transition-all">
+                        <i class="fa-solid fa-futbol text-base sm:text-lg"></i>
+                        <span>الملعب والأهداف</span>
+                    </button>
+                    <!-- Tab 3: Trophies Cabinet -->
+                    <button onclick="switchTab('trophies')" id="tab-btn-trophies" class="nav-tab-btn flex-1 py-2 sm:py-2.5 px-2 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 font-bold text-xs sm:text-sm text-emerald-200/70 hover:text-white transition-all">
+                        <i class="fa-solid fa-trophy text-base sm:text-lg"></i>
+                        <span>الكؤوس</span>
+                    </button>
+                    <!-- Tab 4: Leaderboard -->
+                    <button onclick="switchTab('leaderboard')" id="tab-btn-leaderboard" class="nav-tab-btn flex-1 py-2 sm:py-2.5 px-2 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 font-bold text-xs sm:text-sm text-emerald-200/70 hover:text-white transition-all">
+                        <i class="fa-solid fa-ranking-star text-base sm:text-lg"></i>
+                        <span>الدوري (20)</span>
+                    </button>
+                </div>
+
+                <!-- Theme Switch & Actions -->
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleTheme()" class="w-10 h-10 rounded-2xl bg-emerald-900/60 hover:bg-emerald-800 flex items-center justify-center text-amber-400 transition-colors shadow-sm" title="تغير المظهر">
+                        <i id="theme-icon" class="fa-solid fa-moon text-base"></i>
+                    </button>
+                    <button onclick="confirmResetCycle()" class="w-10 h-10 rounded-2xl bg-red-950/60 hover:bg-red-900 text-red-400 flex items-center justify-center transition-colors shadow-sm" title="إعادة تعيين الدورة الحالية">
+                        <i class="fa-solid fa-rotate-right text-sm"></i>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </nav>
+
+    <!-- Top Temporal Status Banner in Stadium Green Theme -->
+    <header class="bg-gradient-to-r from-emerald-900 via-green-800 to-emerald-950 text-white py-3.5 border-b border-emerald-700/50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm font-bold">
+            <div class="flex items-center gap-2.5">
+                <i class="fa-regular fa-calendar-check text-lg text-amber-300"></i>
+                <span id="temporal-cycle-string">جاري حساب الدورة الشهرية...</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="temporal-current-date" class="bg-emerald-950/60 border border-emerald-600/40 backdrop-blur-md px-3 py-1 rounded-xl">التاريخ: --</span>
+                <span id="temporal-days-left" class="bg-amber-400 text-slate-950 px-3 py-1 rounded-xl font-black shadow-md">متبقي -- أيام</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER WITH GREEN BORDER ACCENTS -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+        <!-- ==================== TAB 1: DASHBOARD & OVERVIEW ==================== -->
+        <section id="tab-section-dashboard" class="tab-content space-y-8">
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-emerald-600/30 shadow-md">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        غرفة قيادة هداف الدوري الإنجليزي 🏆
+                    </h2>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">تابع أداءك اليومي، أهدافك السريعة، ومركزك بين الـ 20 منافساً في جدول الترتيب.</p>
+                </div>
+                <button onclick="switchTab('stadium')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus-circle"></i> إضافة أهداف جديدة
+                </button>
+            </div>
+
+            <!-- ... existing code for Overview Grid Cards ... -->
+            <!-- Goals Summary Card -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                
+                <div class="bg-white dark:bg-slate-900 border-2 border-blue-500/30 p-5 rounded-3xl shadow-sm relative overflow-hidden group hover:border-blue-500 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-bullseye text-lg"></i>
+                        </div>
+                        <span class="text-xs font-extrabold px-2.5 py-1 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full">حد 350/شهر</span>
+                    </div>
+                    <div class="flex items-baseline justify-between">
+                        <h3 id="dash-goals-val" class="text-3xl font-black text-blue-600 dark:text-blue-400">0</h3>
+                        <span class="text-xs text-slate-400 font-bold">ساعة مذاكرة</span>
+                    </div>
+                    <div class="mt-4 w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div id="dash-goals-bar" class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="mt-2 flex justify-between text-[11px] text-slate-400 font-bold">
+                        <span>الهدف الذهبي (150 س)</span>
+                        <span id="dash-goals-pct">0%</span>
+                    </div>
+                </div>
+
+                <!-- Assists Summary Card -->
+                <div class="bg-white dark:bg-slate-900 border-2 border-red-500/30 p-5 rounded-3xl shadow-sm relative overflow-hidden group hover:border-red-500 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-2xl bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-hands-holding-child text-lg"></i>
+                        </div>
+                        <span class="text-xs font-extrabold px-2.5 py-1 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-full">حد 50/شهر</span>
+                    </div>
+                    <div class="flex items-baseline justify-between">
+                        <h3 id="dash-assists-val" class="text-3xl font-black text-red-600 dark:text-red-400">0</h3>
+                        <span class="text-xs text-slate-400 font-bold">تمريرة حاسمة</span>
+                    </div>
+                    <div class="mt-4 w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div id="dash-assists-bar" class="bg-red-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="mt-2 flex justify-between text-[11px] text-slate-400 font-bold">
+                        <span>القلم الذهبي (30)</span>
+                        <span id="dash-assists-pct">0%</span>
+                    </div>
+                </div>
+
+                <!-- Clean Sheet Summary Card -->
+                <div class="bg-white dark:bg-slate-900 border-2 border-amber-500/30 p-5 rounded-3xl shadow-sm relative overflow-hidden group hover:border-amber-500 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-shield-halved text-lg"></i>
+                        </div>
+                        <span class="text-xs font-extrabold px-2.5 py-1 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-full">حد 30 يوم</span>
+                    </div>
+                    <div class="flex items-baseline justify-between">
+                        <h3 id="dash-cleansheet-val" class="text-3xl font-black text-amber-600 dark:text-amber-400">0</h3>
+                        <span class="text-xs text-slate-400 font-bold">أيام نظيفة</span>
+                    </div>
+                    <div class="mt-4 w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div id="dash-cleansheet-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="mt-2 flex justify-between text-[11px] text-slate-400 font-bold">
+                        <span>سلسلة الأيام النظيفة</span>
+                        <span id="dash-cleansheet-streak">0 متتالية</span>
+                    </div>
+                </div>
+
+                <!-- Saves Summary Card -->
+                <div class="bg-white dark:bg-slate-900 border-2 border-emerald-500/30 p-5 rounded-3xl shadow-sm relative overflow-hidden group hover:border-emerald-500 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-hand-fist text-lg"></i>
+                        </div>
+                        <span class="text-xs font-extrabold px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-full">حد 50/شهر</span>
+                    </div>
+                    <div class="flex items-baseline justify-between">
+                        <h3 id="dash-saves-val" class="text-3xl font-black text-emerald-600 dark:text-emerald-400">0</h3>
+                        <span class="text-xs text-slate-400 font-bold">تصدي بطولي</span>
+                    </div>
+                    <div class="mt-4 w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div id="dash-saves-bar" class="bg-emerald-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="mt-2 flex justify-between text-[11px] text-slate-400 font-bold">
+                        <span>نسبة التدارك</span>
+                        <span id="dash-saves-pct">0%</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Detailed Progress Highlights with Pitch Green Background -->
+            <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-green-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-emerald-600/40 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="space-y-2 text-center md:text-right">
+                    <div class="inline-flex items-center gap-2 bg-amber-400/20 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-full text-xs font-black">
+                        <i class="fa-solid fa-fire"></i> صراع هداف الدوري الإنجليزي (20 متنافس)
+                    </div>
+                    <h3 class="text-2xl font-black">ترتيبك بين أبطال الدوري: <span id="dash-user-rank-title" class="text-amber-400">المركز --</span></h3>
+                    <p class="text-slate-300 text-sm max-w-xl">تنافس مع 19 متسابقاً افتراضياً بأسماء عربية رياضية. سجل أهدافك بانتظام لتتدرج في الترتيب وتعتلي منصة الذهب!</p>
+                </div>
+                <button onclick="switchTab('leaderboard')" class="px-6 py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-2xl transition-all shadow-lg shadow-amber-400/20 flex items-center gap-2 shrink-0">
+                    <i class="fa-solid fa-ranking-star"></i> عرض الجدول الكامل (20 لاعب)
+                </button>
+            </div>
+
+        </section>
+
+        <!-- ==================== TAB 2: STADIUM & GOALS ==================== -->
+        <!-- ... existing code for Tab 2 ... -->
+        <section id="tab-section-stadium" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-emerald-600/30 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-black flex items-center gap-2">
+                        <i class="fa-solid fa-futbol text-emerald-600"></i>
+                        أرضية الملعب: سجل الأهداف والدوائر التفاعلية
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">انقر على الدوائر أو الأزرار لتسجيل الأهداف والتمريرات مع مؤثرات حركية خفيفة</p>
+                </div>
+            </div>
+            <!-- ... existing code for Categories Grid in Tab 2 ... -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- 1. GOALS CATEGORY -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950 border-2 border-blue-600 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shadow-md">
+                                    <i class="fa-solid fa-bullseye"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-black flex items-center gap-2">
+                                        الأهداف (Goals)
+                                        <button onclick="openTooltipModal('goals')" class="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 hover:bg-blue-100 flex items-center justify-center text-xs transition-colors">
+                                            <i class="fa-solid fa-question"></i>
+                                        </button>
+                                    </h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">ساعة مذاكرة مركزة (الحد الشهري: 350)</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-blue-600 dark:text-blue-400" id="cat-goals-num">0 / 350</span>
+                        </div>
+
+                        <div class="flex items-center gap-3 mb-5">
+                            <button onclick="modifyCounter('goals', -1, event)" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-2xl text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-minus"></i> إزالة
+                            </button>
+                            <button onclick="modifyCounter('goals', 1, event)" class="flex-2 py-3 border-2 border-blue-600 bg-white hover:bg-blue-600 hover:text-white dark:bg-slate-900 text-blue-600 font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 text-sm">
+                                <i class="fa-solid fa-plus"></i> إضافة هدف (+1 ساعة)
+                            </button>
+                            <button onclick="modifyCounter('goals', 5, event)" class="py-3 px-4 border-2 border-blue-600/30 text-blue-600 font-bold rounded-2xl hover:bg-blue-50 dark:hover:bg-blue-950 transition-all text-sm">
+                                +5
+                            </button>
+                        </div>
+
+                        <div class="mb-2 flex items-center justify-between text-xs font-bold text-slate-400">
+                            <span>سجل الدوائر (انقر للتنشيط):</span>
+                            <span id="goals-bubble-count">0 / 350</span>
+                        </div>
+                        <div id="goals-bubbles-wrapper" class="grid grid-cols-10 sm:grid-cols-14 gap-2 max-h-52 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                </div>
+
+                <!-- 2. ASSISTS CATEGORY -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950 border-2 border-red-600 text-red-600 dark:text-red-400 flex items-center justify-center text-xl shadow-md">
+                                    <i class="fa-solid fa-hands-holding-child"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-black flex items-center gap-2">
+                                        التمريرات الحاسمة (Assists)
+                                        <button onclick="openTooltipModal('assists')" class="w-6 h-6 rounded-full bg-red-50 dark:bg-red-950 text-red-600 hover:bg-red-100 flex items-center justify-center text-xs transition-colors">
+                                            <i class="fa-solid fa-question"></i>
+                                        </button>
+                                    </h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">مذاكرة متوسطة/وحدة (الحد الشهري: 50)</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-red-600 dark:text-red-400" id="cat-assists-num">0 / 50</span>
+                        </div>
+
+                        <div class="flex items-center gap-3 mb-5">
+                            <button onclick="modifyCounter('assists', -1, event)" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-2xl text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-minus"></i> إزالة
+                            </button>
+                            <button onclick="modifyCounter('assists', 1, event)" class="flex-2 py-3 border-2 border-red-600 bg-white hover:bg-red-600 hover:text-white dark:bg-slate-900 text-red-600 font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 text-sm">
+                                <i class="fa-solid fa-plus"></i> تمريرة حاسمة (+1)
+                            </button>
+                            <button onclick="modifyCounter('assists', 5, event)" class="py-3 px-4 border-2 border-red-600/30 text-red-600 font-bold rounded-2xl hover:bg-red-50 dark:hover:bg-red-950 transition-all text-sm">
+                                +5
+                            </button>
+                        </div>
+
+                        <div class="mb-2 flex items-center justify-between text-xs font-bold text-slate-400">
+                            <span>دوائر التمريرات:</span>
+                            <span id="assists-bubble-count">0 / 50</span>
+                        </div>
+                        <div id="assists-bubbles-wrapper" class="grid grid-cols-10 sm:grid-cols-14 gap-2 max-h-52 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                </div>
+
+                <!-- 3. CLEAN SHEET DAYS CATEGORY -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950 border-2 border-amber-500 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shadow-md">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-black flex items-center gap-2">
+                                        جدار الدفاع (Clean Sheet)
+                                        <button onclick="openTooltipModal('cleansheet')" class="w-6 h-6 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 hover:bg-amber-100 flex items-center justify-center text-xs transition-colors">
+                                            <i class="fa-solid fa-question"></i>
+                                        </button>
+                                    </h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">يوم بدون تشتت (الحد الشهري: 30 يوماً)</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-amber-600 dark:text-amber-400" id="cat-cleansheet-num">0 / 30</span>
+                        </div>
+
+                        <div class="flex items-center gap-3 mb-5">
+                            <button onclick="modifyCounter('cleansheet', -1, event)" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-2xl text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-minus"></i> إزالة
+                            </button>
+                            <button onclick="modifyCounter('cleansheet', 1, event)" class="flex-2 py-3 border-2 border-amber-500 bg-white hover:bg-amber-500 hover:text-white dark:bg-slate-900 text-amber-600 font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 text-sm">
+                                <i class="fa-solid fa-plus"></i> يوم نظيف (+1)
+                            </button>
+                        </div>
+
+                        <div class="mb-2 flex items-center justify-between text-xs font-bold text-slate-400">
+                            <span>دوائر أيام الدفاع:</span>
+                            <span id="cleansheet-bubble-count">0 / 30</span>
+                        </div>
+                        <div id="cleansheet-bubbles-wrapper" class="grid grid-cols-10 sm:grid-cols-10 gap-2 max-h-52 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                </div>
+
+                <!-- 4. SAVES CATEGORY -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 border-2 border-emerald-600 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shadow-md">
+                                    <i class="fa-solid fa-hand-fist"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-black flex items-center gap-2">
+                                        التصديات (Saves)
+                                        <button onclick="openTooltipModal('saves')" class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center text-xs transition-colors">
+                                            <i class="fa-solid fa-question"></i>
+                                        </button>
+                                    </h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">إنقاذ اليوم من الضياع (الحد الشهري: 50)</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-emerald-600 dark:text-emerald-400" id="cat-saves-num">0 / 50</span>
+                        </div>
+
+                        <div class="flex items-center gap-3 mb-5">
+                            <button onclick="modifyCounter('saves', -1, event)" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-2xl text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-minus"></i> إزالة
+                            </button>
+                            <button onclick="modifyCounter('saves', 1, event)" class="flex-2 py-3 border-2 border-emerald-600 bg-white hover:bg-emerald-600 hover:text-white dark:bg-slate-900 text-emerald-600 font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 text-sm">
+                                <i class="fa-solid fa-plus"></i> تصدٍ حاسم (+1)
+                            </button>
+                            <button onclick="modifyCounter('saves', 5, event)" class="py-3 px-4 border-2 border-emerald-600/30 text-emerald-600 font-bold rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all text-sm">
+                                +5
+                            </button>
+                        </div>
+
+                        <div class="mb-2 flex items-center justify-between text-xs font-bold text-slate-400">
+                            <span>دوائر التصديات:</span>
+                            <span id="saves-bubble-count">0 / 50</span>
+                        </div>
+                        <div id="saves-bubbles-wrapper" class="grid grid-cols-10 sm:grid-cols-14 gap-2 max-h-52 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                </div>
+
+                <!-- 5. HAT-TRICK CATEGORY -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between lg:col-span-2">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950 border-2 border-purple-600 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shadow-md">
+                                    <i class="fa-solid fa-hat-wizard"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-black flex items-center gap-2">
+                                        الهاتريك (Hat-tricks) - السجل التراكمي العام
+                                        <button onclick="openTooltipModal('hattrick')" class="w-6 h-6 rounded-full bg-purple-50 dark:bg-purple-950 text-purple-600 hover:bg-purple-100 flex items-center justify-center text-xs transition-colors">
+                                            <i class="fa-solid fa-question"></i>
+                                        </button>
+                                    </h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">7 أيام متتالية في جدار الدفاع (الحد العام التراكمي: 100 هاتريك)</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-purple-600 dark:text-purple-400" id="cat-hattrick-num">0 / 100</span>
+                        </div>
+
+                        <div class="flex items-center gap-3 mb-5">
+                            <button onclick="modifyCounter('hattrick', -1, event)" class="w-32 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-2xl text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-minus"></i> إزالة
+                            </button>
+                            <button onclick="modifyCounter('hattrick', 1, event)" class="flex-1 py-3 border-2 border-purple-600 bg-white hover:bg-purple-600 hover:text-white dark:bg-slate-900 text-purple-600 font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 text-sm">
+                                <i class="fa-solid fa-plus"></i> تسجيل هاتريك مسبق أو يدوي (+1)
+                            </button>
+                        </div>
+
+                        <div class="mb-2 flex items-center justify-between text-xs font-bold text-slate-400">
+                            <span>دوائر الهاتريك الإجمالية:</span>
+                            <span id="hattrick-bubble-count">0 / 100</span>
+                        </div>
+                        <div id="hattrick-bubbles-wrapper" class="grid grid-cols-10 sm:grid-cols-20 gap-2 max-h-52 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: TROPHIES CABINET (REALISTIC 3D trophies) ==================== -->
+        <section id="tab-section-trophies" class="tab-content hidden space-y-8">
+            
+            <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-emerald-600/30 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-black flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-500"></i>
+                        كابينة الجوائز الفخمة والأوسمة
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">الكؤوس تفتح تلقائياً عند استيفاء أرقام الإنجاز المطلوبة</p>
+                </div>
+                <button onclick="fireCelebrationConfetti()" class="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-2xl transition-all shadow-md flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> ألعاب نارية احتفالية
+                </button>
+            </div>
+
+            <!-- Realistic Trophies Showcase Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <!-- Trophy 1: Hat-trick Medal -->
+                <div id="card-trophy-hattrick" class="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col items-center text-center transition-all opacity-40 grayscale">
+                    <div class="w-24 h-24 mb-4 flex items-center justify-center drop-shadow-xl">
+                        <!-- Realistic SVG Medal -->
+                        <svg viewBox="0 0 100 100" class="w-full h-full">
+                            <defs>
+                                <linearGradient id="hatGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#c084fc"/>
+                                    <stop offset="50%" stop-color="#9333ea"/>
+                                    <stop offset="100%" stop-color="#581c87"/>
+                                </linearGradient>
+                                <linearGradient id="ribbonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#ef4444"/>
+                                    <stop offset="100%" stop-color="#b91c1c"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M35,10 L50,30 L65,10 L55,40 L45,40 Z" fill="url(#ribbonGrad)"/>
+                            <circle cx="50" cy="60" r="32" fill="url(#hatGradient)" stroke="#fef08a" stroke-width="3"/>
+                            <circle cx="50" cy="60" r="25" fill="none" stroke="#ffffff" stroke-dasharray="3,2" stroke-width="1.5"/>
+                            <text x="50" y="66" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle">🎩</text>
+                        </svg>
+                    </div>
+                    <h3 class="font-black text-lg mb-1">وسام الهاتريك</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">تحقيق 7 أيام متتالية في جدار الدفاع</p>
+                    <span id="badge-status-hattrick" class="mt-auto px-4 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-black rounded-xl">مغلق 🔒</span>
+                </div>
+
+                <!-- Trophy 2: Top Scorer Premier Cup -->
+                <div id="card-trophy-topscorer" class="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col items-center text-center transition-all opacity-40 grayscale">
+                    <div class="w-24 h-24 mb-4 flex items-center justify-center drop-shadow-2xl">
+                        <!-- Realistic SVG Premier League Style Trophy -->
+                        <svg viewBox="0 0 100 120" class="w-full h-full">
+                            <defs>
+                                <linearGradient id="goldTrophyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#fef08a"/>
+                                    <stop offset="35%" stop-color="#eab308"/>
+                                    <stop offset="70%" stop-color="#ca8a04"/>
+                                    <stop offset="100%" stop-color="#854d0e"/>
+                                </linearGradient>
+                                <linearGradient id="crownGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#ffffff"/>
+                                    <stop offset="100%" stop-color="#fbbf24"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Crown Top -->
+                            <path d="M40,15 L50,5 L60,15 L57,22 L43,22 Z" fill="url(#crownGrad)"/>
+                            <!-- Handles -->
+                            <path d="M22,35 C10,40 10,65 26,70 L30,62 C20,58 20,45 28,42 Z" fill="url(#goldTrophyGrad)"/>
+                            <path d="M78,35 C90,40 90,65 74,70 L70,62 C80,58 80,45 72,42 Z" fill="url(#goldTrophyGrad)"/>
+                            <!-- Cup Body -->
+                            <path d="M26,25 L74,25 L66,70 C60,82 40,82 34,70 Z" fill="url(#goldTrophyGrad)"/>
+                            <!-- Base stem -->
+                            <rect x="44" y="80" width="12" height="15" fill="url(#goldTrophyGrad)"/>
+                            <rect x="25" y="95" width="50" height="15" rx="3" fill="#1e293b" stroke="#eab308" stroke-width="2"/>
+                            <text x="50" y="106" font-size="8" font-weight="900" fill="#fef08a" text-anchor="middle">PREMIER CUP</text>
+                        </svg>
+                    </div>
+                    <h3 class="font-black text-lg mb-1">كأس هداف الدوري</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">تسجيل 150 هدفاً (ساعة مذاكرة) خلال الدورة الشهرية</p>
+                    <span id="badge-status-topscorer" class="mt-auto px-4 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-black rounded-xl">مغلق 🔒</span>
+                </div>
+
+                <!-- Trophy 3: Ballon d'Or Realistic Ball -->
+                <div id="card-trophy-ballondor" class="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col items-center text-center transition-all opacity-40 grayscale">
+                    <div class="w-24 h-24 mb-4 flex items-center justify-center drop-shadow-2xl">
+                        <!-- Realistic Golden Ball SVG -->
+                        <svg viewBox="0 0 100 110" class="w-full h-full">
+                            <defs>
+                                <radialGradient id="ballonGrad" cx="35%" cy="35%" r="65%">
+                                    <stop offset="0%" stop-color="#fffbeb"/>
+                                    <stop offset="30%" stop-color="#fde047"/>
+                                    <stop offset="65%" stop-color="#eab308"/>
+                                    <stop offset="90%" stop-color="#a16207"/>
+                                    <stop offset="100%" stop-color="#713f12"/>
+                                </radialGradient>
+                                <linearGradient id="basePyramid" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#451a03"/>
+                                    <stop offset="100%" stop-color="#0f172a"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Golden Ball -->
+                            <circle cx="50" cy="45" r="35" fill="url(#ballonGrad)"/>
+                            <!-- Hexagon facets on ball -->
+                            <polygon points="50,20 62,28 62,42 50,50 38,42 38,28" fill="none" stroke="#713f12" stroke-width="1.5" opacity="0.6"/>
+                            <polygon points="50,50 63,58 58,72 42,72 37,58" fill="none" stroke="#713f12" stroke-width="1.5" opacity="0.6"/>
+                            <!-- Pyramidal Base -->
+                            <polygon points="30,80 70,80 78,105 22,105" fill="url(#basePyramid)" stroke="#eab308" stroke-width="1.5"/>
+                            <text x="50" y="97" font-size="7" font-weight="900" fill="#fde047" text-anchor="middle">BALLON D'OR</text>
+                        </svg>
+                    </div>
+                    <h3 class="font-black text-lg mb-1">الكرة الذهبية (Ballon d'Or)</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">إكمال 30 يوماً متواصلة في جدار الدفاع</p>
+                    <span id="badge-status-ballondor" class="mt-auto px-4 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-black rounded-xl">مغلق 🔒</span>
+                </div>
+
+                <!-- Trophy 4: Golden Pen Realistic -->
+                <div id="card-trophy-goldenpen" class="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col items-center text-center transition-all opacity-40 grayscale">
+                    <div class="w-24 h-24 mb-4 flex items-center justify-center drop-shadow-xl">
+                        <!-- Golden Nib Pen SVG -->
+                        <svg viewBox="0 0 100 110" class="w-full h-full">
+                            <defs>
+                                <linearGradient id="penGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#fef9c3"/>
+                                    <stop offset="40%" stop-color="#eab308"/>
+                                    <stop offset="100%" stop-color="#854d0e"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Pen Nib -->
+                            <path d="M50,10 L70,55 L58,95 L42,95 L30,55 Z" fill="url(#penGold)"/>
+                            <line x1="50" y1="10" x2="50" y2="60" stroke="#713f12" stroke-width="2"/>
+                            <circle cx="50" cy="60" r="4" fill="#713f12"/>
+                            <!-- Base stand -->
+                            <rect x="25" y="95" width="50" height="12" rx="4" fill="#0f172a" stroke="#eab308" stroke-width="1.5"/>
+                            <text x="50" y="104" font-size="7" font-weight="900" fill="#fde047" text-anchor="middle">GOLDEN PEN</text>
+                        </svg>
+                    </div>
+                    <h3 class="font-black text-lg mb-1">القلم الذهبي (Golden Pen)</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">تحقيق 30 تمريرة حاسمة في الدورة الشهرية</p>
+                    <span id="badge-status-goldenpen" class="mt-auto px-4 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-black rounded-xl">مغلق 🔒</span>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- ==================== TAB 4: LEADERBOARD FOR 20 COMPETITORS ==================== -->
+        <section id="tab-section-leaderboard" class="tab-content hidden space-y-8">
+            
+            <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-emerald-600/30 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-black flex items-center gap-2">
+                        <i class="fa-solid fa-ranking-star text-amber-500"></i>
+                        جدول ترتيب دوري النخبة الإنجليزي (20 متسابقاً)
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">منافسة شرسة تضمك مع 19 منافساً يتطور أداؤهم يومياً تلقائياً طوال الشهر</p>
+                </div>
+                <div class="bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 px-4 py-2 rounded-2xl text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                    مجموع نقاطك: <strong id="user-points-badge" class="text-sm font-black text-emerald-600 dark:text-emerald-400">0</strong> ن
+                </div>
+            </div>
+
+            <!-- Top 3 Podium Showcase Section -->
+            <div id="podium-showcase-container" class="grid grid-cols-3 gap-3 sm:gap-6 items-end pt-6 pb-2 max-w-2xl mx-auto">
+                <!-- Dynamically Rendered Podium Bars -->
+            </div>
+
+            <!-- Full 20 Competitors Table -->
+            <div class="bg-white dark:bg-slate-900 border-2 border-emerald-600/30 rounded-3xl overflow-hidden shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead>
+                            <tr class="bg-emerald-950 text-white text-xs font-black uppercase">
+                                <th class="py-4 px-4 sm:px-6">المركز</th>
+                                <th class="py-4 px-4 sm:px-6">اللاعب المنافس</th>
+                                <th class="py-4 px-4 text-center">الأهداف</th>
+                                <th class="py-4 px-4 text-center">التمريرات</th>
+                                <th class="py-4 px-4 text-center">الدفاع</th>
+                                <th class="py-4 px-4 text-left sm:px-6">إجمالي النقاط</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60 font-semibold">
+                            <!-- 20 Leaderboard Rows Dynamically Generated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- App JavaScript Logic with 20 Competitors -->
+    <script>
+        /* ... existing code for TOOLTIPS_DATA ... */
+        const TOOLTIPS_DATA = {
+            goals: {
+                title: "الأهداف (Goals)",
+                icon: "fa-bullseye",
+                color: "bg-blue-600",
+                desc: "كل هدف = 1 ساعة مذاكرة فعلية مركزة. الإطار أزرق بخلفية بيضاء وتتحول للأزرق الملكي المكتنز عند التفعيل. الحد الأقصى الشهري 350 هدفاً."
+            },
+            assists: {
+                title: "التمريرات الحاسمة (Assists)",
+                icon: "fa-hands-holding-child",
+                color: "bg-red-600",
+                desc: "كل تمريرة = مذاكرة متوسطة، إنهاء مصطلحات/مرادفات، قراءة قصة كاملة، أو إنهاء وحدة دراسية. الإطار أحمر وتتحول للأحمر عند التفعيل. الحد الشهري 50."
+            },
+            cleansheet: {
+                title: "جدار الدفاع (Clean Sheet Days)",
+                icon: "fa-shield-halved",
+                color: "bg-amber-500",
+                desc: "كل نقطة = يوم كامل بدون تشتت ولا انهزام. الإطار أصفر ذهبي وتتحول للذهبي المشبع عند التفعيل. الحد الشهري 30 يوماً."
+            },
+            saves: {
+                title: "التصديات (Saves)",
+                icon: "fa-hand-fist",
+                color: "bg-emerald-600",
+                desc: "إنقاذ اليوم من الضياع أو تدارك التعثر أثناء المذاكرة. الإطار أخضر وتتحول للأخضر الزمردي عند التفعيل. الحد الشهري 50 تصدياً."
+            },
+            hattrick: {
+                title: "الهاتريك (Hat-tricks)",
+                icon: "fa-hat-wizard",
+                color: "bg-purple-600",
+                desc: "سجل تراكمي عام (غير مرتبط بإعادة التعيين الشهري). كل هاتريك يعبر عن تحقيق 7 أيام متتالية في جدار الدفاع. الإطار بنفسجي. الحد العام 100."
+            }
+        };
+
+        // --- 19 BOT COMPETITORS + USER = 20 TOTAL ---
+        const BOT_COMPETITORS = [
+            { id: 'bot1', name: 'كريم "الصاروخ" 🚀', avatarBg: 'bg-indigo-600', dailyGoalRate: 4.6, dailyAssistRate: 0.9, dailyCleanRate: 0.88 },
+            { id: 'bot2', name: 'أحمد "المايسترو" 🎨', avatarBg: 'bg-emerald-600', dailyGoalRate: 4.2, dailyAssistRate: 1.4, dailyCleanRate: 0.90 },
+            { id: 'bot3', name: 'عمر "السد العالي" 🧱', avatarBg: 'bg-amber-600', dailyGoalRate: 3.5, dailyAssistRate: 0.7, dailyCleanRate: 0.95 },
+            { id: 'bot4', name: 'طارق "الرسام" ✒️', avatarBg: 'bg-purple-600', dailyGoalRate: 3.8, dailyAssistRate: 1.3, dailyCleanRate: 0.80 },
+            { id: 'bot5', name: 'يوسف "الفهد" 🐆', avatarBg: 'bg-rose-600', dailyGoalRate: 4.1, dailyAssistRate: 0.8, dailyCleanRate: 0.82 },
+            { id: 'bot6', name: 'مصطفى "الدبابة" 🚜', avatarBg: 'bg-blue-700', dailyGoalRate: 3.9, dailyAssistRate: 0.6, dailyCleanRate: 0.85 },
+            { id: 'bot7', name: 'حمزة "العاصفة" 🌪️', avatarBg: 'bg-cyan-600', dailyGoalRate: 3.4, dailyAssistRate: 1.1, dailyCleanRate: 0.78 },
+            { id: 'bot8', name: 'زياد "القناص" 🎯', avatarBg: 'bg-red-700', dailyGoalRate: 4.4, dailyAssistRate: 0.5, dailyCleanRate: 0.75 },
+            { id: 'bot9', name: 'بلال "الجدار" 🛡️', avatarBg: 'bg-slate-700', dailyGoalRate: 2.8, dailyAssistRate: 0.8, dailyCleanRate: 0.98 },
+            { id: 'bot10', name: 'خالد "المحرك" ⚙️', avatarBg: 'bg-amber-700', dailyGoalRate: 3.6, dailyAssistRate: 1.2, dailyCleanRate: 0.82 },
+            { id: 'bot11', name: 'حسن "الأستاذ" 📚', avatarBg: 'bg-teal-600', dailyGoalRate: 3.3, dailyAssistRate: 1.0, dailyCleanRate: 0.87 },
+            { id: 'bot12', name: 'ياسين "البرق" ⚡', avatarBg: 'bg-yellow-600', dailyGoalRate: 4.0, dailyAssistRate: 0.7, dailyCleanRate: 0.70 },
+            { id: 'bot13', name: 'عبد الرحمن "المهندس" 📐', avatarBg: 'bg-indigo-800', dailyGoalRate: 3.7, dailyAssistRate: 0.9, dailyCleanRate: 0.84 },
+            { id: 'bot14', name: 'سيف "الصقر" 🦅', avatarBg: 'bg-sky-600', dailyGoalRate: 3.2, dailyAssistRate: 0.8, dailyCleanRate: 0.88 },
+            { id: 'bot15', name: 'علي "الماكينة" 🤖', avatarBg: 'bg-violet-700', dailyGoalRate: 3.5, dailyAssistRate: 1.0, dailyCleanRate: 0.79 },
+            { id: 'bot16', name: 'مروان "الرادار" 📡', avatarBg: 'bg-fuchsia-700', dailyGoalRate: 2.9, dailyAssistRate: 1.3, dailyCleanRate: 0.81 },
+            { id: 'bot17', name: 'إبراهيم "الأسد" 🦁', avatarBg: 'bg-orange-600', dailyGoalRate: 3.8, dailyAssistRate: 0.6, dailyCleanRate: 0.86 },
+            { id: 'bot18', name: 'انس "الثعلب" 🦊', avatarBg: 'bg-stone-600', dailyGoalRate: 3.1, dailyAssistRate: 1.1, dailyCleanRate: 0.83 },
+            { id: 'bot19', name: 'سليم "الصاروخ 2" 🚀', avatarBg: 'bg-emerald-800', dailyGoalRate: 3.6, dailyAssistRate: 0.8, dailyCleanRate: 0.85 }
+        ];
+
+        /* ... existing code for calculateCurrentCycle, loadState, saveState, switchTab, toggleTheme ... */
+        function calculateCurrentCycle() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const date = now.getDate();
+
+            let startYear = year;
+            let startMonth = month;
+            if (date < 9) {
+                startMonth -= 1;
+                if (startMonth < 0) {
+                    startMonth = 11;
+                    startYear -= 1;
+                }
+            }
+            const startDate = new Date(startYear, startMonth, 9);
+
+            let endYear = startYear;
+            let endMonth = startMonth + 1;
+            if (endMonth > 11) {
+                endMonth = 0;
+                endYear += 1;
+            }
+            const endDate = new Date(endYear, endMonth, 8, 23, 59, 59);
+
+            const key = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-09`;
+            const elapsedMs = now - startDate;
+            const elapsedDays = Math.max(1, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)) + 1);
+            const remainingMs = endDate - now;
+            const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
+
+            const monthNames = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+            return {
+                key: key,
+                startDate: startDate,
+                endDate: endDate,
+                elapsedDays: elapsedDays,
+                remainingDays: remainingDays,
+                currentDateStr: `${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`,
+                cycleString: `الدورة الشهرية: ${startDate.getDate()} ${monthNames[startDate.getMonth()]} إلى 8 ${monthNames[endDate.getMonth()]} ${endDate.getFullYear()}`
+            };
+        }
+
+        let currentCycleInfo = calculateCurrentCycle();
+        let appState = loadState();
+
+        function loadState() {
+            const defaultState = {
+                theme: 'light',
+                activeTab: 'dashboard',
+                lifetimeHattricks: 0,
+                unlockedTrophies: { hattrick: false, topscorer: false, ballondor: false, goldenpen: false },
+                cycleData: {}
+            };
+            try {
+                const saved = localStorage.getItem('academic_football_tracker_v2');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (!parsed.cycleData) parsed.cycleData = {};
+                    if (!parsed.cycleData[currentCycleInfo.key]) {
+                        parsed.cycleData[currentCycleInfo.key] = getEmptyCycleState();
+                    }
+                    return parsed;
+                }
+            } catch (e) {
+                console.error("Storage error:", e);
+            }
+            defaultState.cycleData[currentCycleInfo.key] = getEmptyCycleState();
+            return defaultState;
+        }
+
+        function getEmptyCycleState() {
+            return { goals: 0, assists: 0, cleansheet: 0, saves: 0 };
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('academic_football_tracker_v2', JSON.stringify(appState));
+            } catch (e) { console.error("Save error:", e); }
+        }
+
+        function getCurrentCycleData() {
+            if (!appState.cycleData[currentCycleInfo.key]) {
+                appState.cycleData[currentCycleInfo.key] = getEmptyCycleState();
+            }
+            return appState.cycleData[currentCycleInfo.key];
+        }
+
+        function switchTab(tabId) {
+            appState.activeTab = tabId;
+            saveState();
+            document.querySelectorAll('.tab-content').forEach(sec => sec.classList.add('hidden'));
+            const activeSec = document.getElementById(`tab-section-${tabId}`);
+            if (activeSec) activeSec.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+                btn.className = "nav-tab-btn flex-1 py-2 sm:py-2.5 px-2 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 font-bold text-xs sm:text-sm text-emerald-200/70 hover:text-white transition-all";
+            });
+
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "nav-tab-btn flex-1 py-2 sm:py-2.5 px-2 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 font-bold text-xs sm:text-sm transition-all text-emerald-400 bg-emerald-900/80";
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                appState.theme = 'light';
+                icon.className = 'fa-solid fa-moon text-base';
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                appState.theme = 'dark';
+                icon.className = 'fa-solid fa-sun text-base text-amber-400';
+            }
+            saveState();
+        }
+
+        function applyTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (appState.theme === 'dark') {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                icon.className = 'fa-solid fa-sun text-base text-amber-400';
+            } else {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                icon.className = 'fa-solid fa-moon text-base';
+            }
+        }
+
+        /* ... existing code for triggerMicroAnimation, modifyCounter, setCounterToExact, renderCategoryBubbles, checkAndUnlockTrophies ... */
+        function triggerMicroAnimation(type, clientX, clientY) {
+            const container = document.getElementById('animation-overlay-container');
+            const elem = document.createElement('div');
+            let iconClass = 'fa-futbol text-blue-600';
+            let animClass = 'anim-shoot';
+
+            if (type === 'goals') { iconClass = 'fa-futbol text-blue-600'; animClass = 'anim-shoot'; }
+            else if (type === 'assists') { iconClass = 'fa-shoe-prints text-red-600'; animClass = 'anim-pass'; }
+            else if (type === 'saves') { iconClass = 'fa-hand-fist text-emerald-600'; animClass = 'anim-save'; }
+            else if (type === 'cleansheet') { iconClass = 'fa-shield-halved text-amber-500'; animClass = 'anim-tackle'; }
+            else if (type === 'hattrick') { iconClass = 'fa-hat-wizard text-purple-600'; animClass = 'anim-shoot'; }
+
+            elem.className = `fixed z-50 text-3xl sm:text-4xl pointer-events-none drop-shadow-lg ${animClass}`;
+            elem.style.left = `${clientX - 20}px`;
+            elem.style.top = `${clientY - 20}px`;
+            elem.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            container.appendChild(elem);
+            setTimeout(() => elem.remove(), 1300);
+        }
+
+        function modifyCounter(category, amount, event) {
+            const cycleData = getCurrentCycleData();
+            const limits = { goals: 350, assists: 50, cleansheet: 30, saves: 50, hattrick: 100 };
+            if (category === 'hattrick') {
+                appState.lifetimeHattricks = Math.max(0, Math.min(limits.hattrick, (appState.lifetimeHattricks || 0) + amount));
+            } else {
+                cycleData[category] = Math.max(0, Math.min(limits[category], (cycleData[category] || 0) + amount));
+            }
+            saveState();
+
+            if (amount > 0 && event) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                triggerMicroAnimation(category, event.clientX || (rect.left + rect.width / 2), event.clientY || (rect.top + rect.height / 2));
+            }
+            renderAllComponents();
+            checkAndUnlockTrophies();
+        }
+
+        function setCounterToExact(category, targetValue, event) {
+            const cycleData = getCurrentCycleData();
+            if (category === 'hattrick') appState.lifetimeHattricks = targetValue;
+            else cycleData[category] = targetValue;
+            saveState();
+            if (event) triggerMicroAnimation(category, event.clientX, event.clientY);
+            renderAllComponents();
+            checkAndUnlockTrophies();
+        }
+
+        function renderCategoryBubbles(containerId, maxLimit, currentValue, categoryKey, activeBgClass, borderClass) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            for (let i = 0; i < maxLimit; i++) {
+                const bubble = document.createElement('button');
+                const isActive = i < currentValue;
+                bubble.className = `bubble-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 ${borderClass} font-bold text-[10px] flex items-center justify-center transition-all ${
+                    isActive ? `${activeBgClass} text-white scale-100 shadow-sm` : 'bg-white dark:bg-slate-900 text-slate-400 hover:scale-105'
+                }`;
+                bubble.innerText = i + 1;
+                bubble.onclick = (e) => setCounterToExact(categoryKey, (isActive && i === currentValue - 1) ? i : i + 1, e);
+                container.appendChild(bubble);
+            }
+        }
+
+        function checkAndUnlockTrophies() {
+            const cycle = getCurrentCycleData();
+            const trophies = appState.unlockedTrophies;
+            let newlyUnlocked = false;
+
+            if (cycle.cleansheet >= 7 && !trophies.hattrick) { trophies.hattrick = true; newlyUnlocked = true; showToastNotification("🏆 وسام (الهاتريك): 7 أيام متتالية في الدفاع!"); }
+            if (cycle.goals >= 150 && !trophies.topscorer) { trophies.topscorer = true; newlyUnlocked = true; showToastNotification("🏆 كأس (هداف الدوري): 150 ساعة مذاكرة!"); }
+            if (cycle.cleansheet >= 30 && !trophies.ballondor) { trophies.ballondor = true; newlyUnlocked = true; showToastNotification("⚽ وسام (الكرة الذهبية): 30 يوماً في الدفاع!"); }
+            if (cycle.assists >= 30 && !trophies.goldenpen) { trophies.goldenpen = true; newlyUnlocked = true; showToastNotification("✒️ وسام (القلم الذهبي): 30 تمريرة حاسمة!"); }
+
+            if (newlyUnlocked) { saveState(); fireCelebrationConfetti(); }
+            renderTrophiesCabinetUI();
+        }
+
+        function renderTrophiesCabinetUI() {
+            const trophies = appState.unlockedTrophies;
+            updateSingleTrophyCard('card-trophy-hattrick', 'badge-status-hattrick', trophies.hattrick, 'تم الفتح 🌟');
+            updateSingleTrophyCard('card-trophy-topscorer', 'badge-status-topscorer', trophies.topscorer, 'هداف الدوري 🏆');
+            updateSingleTrophyCard('card-trophy-ballondor', 'badge-status-ballondor', trophies.ballondor, 'الكرة الذهبية ⚽');
+            updateSingleTrophyCard('card-trophy-goldenpen', 'badge-status-goldenpen', trophies.goldenpen, 'القلم الذهبي ✒️');
+        }
+
+        function updateSingleTrophyCard(cardId, badgeId, isUnlocked, activeLabel) {
+            const card = document.getElementById(cardId);
+            const badge = document.getElementById(badgeId);
+            if (!card || !badge) return;
+            if (isUnlocked) {
+                card.className = "bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-500/60 p-6 rounded-3xl flex flex-col items-center text-center transition-all opacity-100 grayscale-0 shadow-2xl scale-[1.02] trophy-glow";
+                badge.className = "mt-auto px-4 py-1.5 bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md";
+                badge.innerText = activeLabel;
+            } else {
+                card.className = "bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col items-center text-center transition-all opacity-40 grayscale";
+                badge.className = "mt-auto px-4 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-black rounded-xl";
+                badge.innerText = "مغلق 🔒";
+            }
+        }
+
+        // --- RENDER 20 LEADERBOARD COMPETITORS ---
+        function renderLeaderboardAndPodium() {
+            const cycle = getCurrentCycleData();
+            const days = currentCycleInfo.elapsedDays;
+
+            const userPts = Math.round((cycle.goals * 3) + (cycle.assists * 1.5) + (cycle.cleansheet * 2) + (cycle.saves * 1));
+            document.getElementById('user-points-badge').innerText = userPts;
+
+            const userEntry = {
+                id: 'user',
+                name: 'أنت (البطل) 🌟',
+                isUser: true,
+                goals: cycle.goals,
+                assists: cycle.assists,
+                cleansheet: cycle.cleansheet,
+                pts: userPts,
+                avatarBg: 'bg-emerald-600'
+            };
+
+            const botsEntries = BOT_COMPETITORS.map(b => {
+                const botGoals = Math.min(350, Math.round(b.dailyGoalRate * days));
+                const botAssists = Math.min(50, Math.round(b.dailyAssistRate * days));
+                const botClean = Math.min(30, Math.round(b.dailyCleanRate * days));
+                const botPts = Math.round((botGoals * 3) + (botAssists * 1.5) + (botClean * 2));
+                return {
+                    id: b.id,
+                    name: b.name,
+                    isUser: false,
+                    goals: botGoals,
+                    assists: botAssists,
+                    cleansheet: botClean,
+                    pts: botPts,
+                    avatarBg: b.avatarBg
+                };
+            });
+
+            // 20 Total Ranked
+            const ranking = [userEntry, ...botsEntries].sort((a, b) => b.pts - a.pts);
+
+            const userRankIndex = ranking.findIndex(r => r.isUser) + 1;
+            document.getElementById('dash-user-rank-title').innerText = `المركز ${userRankIndex} / 20`;
+
+            renderPodiumShowcase(ranking.slice(0, 3));
+
+            const tbody = document.getElementById('leaderboard-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            ranking.forEach((player, idx) => {
+                const rank = idx + 1;
+                const tr = document.createElement('tr');
+
+                let rankBadge = `<span class="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500">${rank}</span>`;
+                if (rank === 1) rankBadge = `<span class="w-8 h-8 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-xs font-black shadow-md">🥇 1</span>`;
+                if (rank === 2) rankBadge = `<span class="w-8 h-8 rounded-full bg-slate-300 text-slate-950 flex items-center justify-center text-xs font-black shadow-md">🥈 2</span>`;
+                if (rank === 3) rankBadge = `<span class="w-8 h-8 rounded-full bg-amber-800 text-white flex items-center justify-center text-xs font-black shadow-md">🥉 3</span>`;
+
+                tr.className = player.isUser
+                    ? "bg-emerald-50 dark:bg-emerald-950/60 border-l-4 border-emerald-600 font-bold"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors";
+
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 sm:px-6 flex items-center gap-2">${rankBadge}</td>
+                    <td class="py-3.5 px-4 sm:px-6">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl ${player.avatarBg} text-white flex items-center justify-center text-xs font-black shadow-sm">
+                                ${player.name.charAt(0)}
+                            </div>
+                            <span class="${player.isUser ? 'text-emerald-600 dark:text-emerald-400 font-black' : ''}">${player.name}</span>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center font-black text-blue-600 dark:text-blue-400">${player.goals}</td>
+                    <td class="py-3.5 px-4 text-center text-red-600 dark:text-red-400">${player.assists}</td>
+                    <td class="py-3.5 px-4 text-center text-amber-600 dark:text-amber-400">${player.cleansheet} ي</td>
+                    <td class="py-3.5 px-4 text-left sm:px-6 font-black text-slate-900 dark:text-slate-100">${player.pts} ن</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderPodiumShowcase(top3) {
+            const container = document.getElementById('podium-showcase-container');
+            if (!container || top3.length < 3) return;
+
+            const second = top3[1];
+            const first = top3[0];
+            const third = top3[2];
+
+            container.innerHTML = `
+                <!-- 2nd Place -->
+                <div class="flex flex-col items-center">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center font-black text-xl mb-2 shadow-md border-2 border-slate-400">
+                        🥈
+                    </div>
+                    <span class="text-xs font-black text-center truncate max-w-[90px]">${second.name}</span>
+                    <span class="text-[10px] text-slate-400 font-bold mb-2">${second.pts} ن</span>
+                    <div class="w-full bg-slate-200 dark:bg-slate-800 h-28 sm:h-36 rounded-t-2xl flex items-center justify-center font-black text-2xl text-slate-500">2</div>
+                </div>
+
+                <!-- 1st Place -->
+                <div class="flex flex-col items-center">
+                    <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-2xl mb-2 shadow-xl border-2 border-amber-300 animate-bounce">
+                        🥇
+                    </div>
+                    <span class="text-xs font-black text-center text-amber-600 dark:text-amber-400 truncate max-w-[100px]">${first.name}</span>
+                    <span class="text-xs text-amber-500 font-extrabold mb-2">${first.pts} ن</span>
+                    <div class="w-full bg-gradient-to-t from-emerald-700 via-emerald-600 to-amber-400 text-slate-950 h-36 sm:h-48 rounded-t-2xl flex items-center justify-center font-black text-4xl shadow-lg">1</div>
+                </div>
+
+                <!-- 3rd Place -->
+                <div class="flex flex-col items-center">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-black text-xl mb-2 shadow-md border-2 border-amber-700">
+                        🥉
+                    </div>
+                    <span class="text-xs font-black text-center truncate max-w-[90px]">${third.name}</span>
+                    <span class="text-[10px] text-slate-400 font-bold mb-2">${third.pts} ن</span>
+                    <div class="w-full bg-amber-900/40 dark:bg-amber-950 h-20 sm:h-28 rounded-t-2xl flex items-center justify-center font-black text-xl text-amber-700">3</div>
+                </div>
+            `;
+        }
+
+        /* ... existing code for renderAllComponents, openTooltipModal, closeTooltipModal, showToastNotification, fireCelebrationConfetti, confirmResetCycle, window.onload ... */
+        function renderAllComponents() {
+            const cycle = getCurrentCycleData();
+
+            document.getElementById('temporal-cycle-string').innerText = currentCycleInfo.cycleString;
+            document.getElementById('temporal-current-date').innerText = `اليوم: ${currentCycleInfo.currentDateStr}`;
+            document.getElementById('temporal-days-left').innerText = `متبقي ${currentCycleInfo.remainingDays} أيام`;
+
+            document.getElementById('dash-goals-val').innerText = cycle.goals;
+            const goalsPct = Math.min(100, Math.round((cycle.goals / 350) * 100));
+            document.getElementById('dash-goals-bar').style.width = `${goalsPct}%`;
+            document.getElementById('dash-goals-pct').innerText = `${goalsPct}%`;
+
+            document.getElementById('dash-assists-val').innerText = cycle.assists;
+            const assistsPct = Math.min(100, Math.round((cycle.assists / 50) * 100));
+            document.getElementById('dash-assists-bar').style.width = `${assistsPct}%`;
+            document.getElementById('dash-assists-pct').innerText = `${assistsPct}%`;
+
+            document.getElementById('dash-cleansheet-val').innerText = cycle.cleansheet;
+            const cleansheetPct = Math.min(100, Math.round((cycle.cleansheet / 30) * 100));
+            document.getElementById('dash-cleansheet-bar').style.width = `${cleansheetPct}%`;
+            document.getElementById('dash-cleansheet-streak').innerText = `${cycle.cleansheet} ي متتالية`;
+
+            document.getElementById('dash-saves-val').innerText = cycle.saves;
+            const savesPct = Math.min(100, Math.round((cycle.saves / 50) * 100));
+            document.getElementById('dash-saves-bar').style.width = `${savesPct}%`;
+            document.getElementById('dash-saves-pct').innerText = `${savesPct}%`;
+
+            document.getElementById('cat-goals-num').innerText = `${cycle.goals} / 350`;
+            document.getElementById('goals-bubble-count').innerText = `${cycle.goals} / 350`;
+            renderCategoryBubbles('goals-bubbles-wrapper', 350, cycle.goals, 'goals', 'bg-blue-600', 'border-blue-600');
+
+            document.getElementById('cat-assists-num').innerText = `${cycle.assists} / 50`;
+            document.getElementById('assists-bubble-count').innerText = `${cycle.assists} / 50`;
+            renderCategoryBubbles('assists-bubbles-wrapper', 50, cycle.assists, 'assists', 'bg-red-600', 'border-red-600');
+
+            document.getElementById('cat-cleansheet-num').innerText = `${cycle.cleansheet} / 30`;
+            document.getElementById('cleansheet-bubble-count').innerText = `${cycle.cleansheet} / 30`;
+            renderCategoryBubbles('cleansheet-bubbles-wrapper', 30, cycle.cleansheet, 'cleansheet', 'bg-amber-500', 'border-amber-500');
+
+            document.getElementById('cat-saves-num').innerText = `${cycle.saves} / 50`;
+            document.getElementById('saves-bubble-count').innerText = `${cycle.saves} / 50`;
+            renderCategoryBubbles('saves-bubbles-wrapper', 50, cycle.saves, 'saves', 'bg-emerald-600', 'border-emerald-600');
+
+            const hattricksVal = appState.lifetimeHattricks || 0;
+            document.getElementById('cat-hattrick-num').innerText = `${hattricksVal} / 100`;
+            document.getElementById('hattrick-bubble-count').innerText = `${hattricksVal} / 100`;
+            renderCategoryBubbles('hattrick-bubbles-wrapper', 100, hattricksVal, 'hattrick', 'bg-purple-600', 'border-purple-600');
+
+            renderLeaderboardAndPodium();
+            renderTrophiesCabinetUI();
+        }
+
+        function openTooltipModal(key) {
+            const data = TOOLTIPS_DATA[key];
+            if (!data) return;
+            document.getElementById('tooltip-modal-title').innerText = data.title;
+            document.getElementById('tooltip-modal-desc').innerText = data.desc;
+            document.getElementById('tooltip-icon-wrapper').className = `w-12 h-12 rounded-2xl flex items-center justify-center text-xl text-white shadow-md ${data.color}`;
+            document.getElementById('tooltip-modal-icon').className = `fa-solid ${data.icon}`;
+            const modal = document.getElementById('tooltip-modal');
+            const box = document.getElementById('tooltip-content-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeTooltipModal() {
+            const modal = document.getElementById('tooltip-modal');
+            const box = document.getElementById('tooltip-content-box');
+            modal.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function showToastNotification(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3500);
+        }
+
+        function fireCelebrationConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            }
+        }
+
+        function confirmResetCycle() {
+            if (confirm("هل أنت متأكد من تصفير وإعادة تعيين بيانات الدورة الشهرية الحالية؟")) {
+                appState.cycleData[currentCycleInfo.key] = getEmptyCycleState();
+                saveState();
+                renderAllComponents();
+                showToastNotification("تم إعادة تعيين بيانات الدورة الشهرية الحالية");
+            }
+        }
+
+        window.onload = function() {
+            applyTheme();
+            switchTab(appState.activeTab || 'dashboard');
+            renderAllComponents();
+            checkAndUnlockTrophies();
+        };
+    </script>
+</body>
+</html>
